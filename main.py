@@ -1,6 +1,8 @@
-def main():
-    name = input("Enter your name: ")
-    print(f"Hello, {name}! Welcome to the minimal Python app.")
+import sys
 
-if __name__ == "__main__":
-    main()
+if len(sys.argv) > 1:
+    name = sys.argv[1]
+else:
+    name = "World"  
+
+print(f"Hello, {name}! Welcome to the minimal Python app.")

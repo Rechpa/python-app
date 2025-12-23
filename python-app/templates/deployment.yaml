@@ -15,6 +15,7 @@ spec:
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:latest"
+          args: ["Farah"]
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
