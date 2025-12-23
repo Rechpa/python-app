@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: farahdiouani/python-app
-  tag: "latest"
+  tag: latest
   pullPolicy: Always
 
 service:
