@@ -1,8 +1,6 @@
-import sys
+def main():
+    print("✅ Python app started")
+    print("🚀 Hello from a non-interactive containerized app")
 
-if len(sys.argv) > 1:
-    name = sys.argv[1]
-else:
-    name = "World"  
-
-print(f"Hello, {name}! Welcome to the minimal Python app.")
+if __name__ == "__main__":
+    main()
