@@ -1,5 +1,6 @@
 FROM python:3.12-slim
 
+RUN echo "Installing deps.." && sleep 5
 WORKDIR /app
 
 # Install dependencies
