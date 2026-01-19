@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.9
 
 RUN echo "Installing deps.." && sleep 5
 WORKDIR /app
