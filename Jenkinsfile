@@ -6,7 +6,7 @@ pipeline {
         GIT_BRANCH = 'link'
         IMAGE_NAME = 'python-app'
         IMAGE_TAG = 'latest'
-        KIND_CLUSTER = 'kind'
+        KIND_CLUSTER = 'kind-3nodes'
     }
 
     stages {
