@@ -42,6 +42,15 @@ pipeline {
             }
         }
 
+        stage('Check kind') {
+            steps {
+                sh '''
+                export KUBECONFIG=/var/lib/jenkins/kubeconfig-kind-3nodes
+                kubectl get nodes 
+                '''
+            }
+        }
+
         stage('Deploy to kind') {
             steps {
                 sh '''
