@@ -1,12 +1,21 @@
-FROM python:3.9
+FROM python:3.11-slim
 
-RUN echo "Installing deps.." && sleep 5
+# Set working directory
 WORKDIR /app
 
+# Prevent Python from writing pyc files & buffering stdout
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
 # Install dependencies
-RUN pip install --no-cache-dir fastapi uvicorn
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY main.py .
+# Copy app code
+COPY . .
 
-# Start HTTP server (long-running)
+# Expose FastAPI port
+EXPOSE 8000
+
+# Run the app
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

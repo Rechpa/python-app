@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1,
+    "title": "FastAPI",
+    "content": "FastAPI is fast \ud83d\udd25",
+    "tags": [
+      "python",
+      "api"
+    ],
+    "created_at": "2026-01-27 20:41"
+  },
+  {
+    "id": 2,
+    "title": "FastAPI",
+    "content": "FastAPI is fast \ud83d\udd25",
+    "tags": [
+      "python",
+      "api"
+    ],
+    "created_at": "2026-01-27 20:41"
+  }
+]
