@@ -1,0 +1,317 @@
+---
+# TriggerTemplate - defines the PipelineRun template
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: cd-trigger-template
+  namespace: cicd
+spec:
+  params:
+    - name: git-url
+      description: The git repository URL
+    - name: git-revision
+      description: The git revision (branch, tag, or commit)
+    - name: image-name
+      description: Container image name
+    - name: image-tag
+      description: Container image tag
+    - name: environment
+      description: Deployment environment
+      default: dev
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        generateName: cd-pipeline-run-
+        namespace: cicd
+      spec:
+        serviceAccountName: tekton-robot
+        pipelineRef:
+          name: cd-pipeline
+        params:
+          - name: git-url
+            value: $(tt.params.git-url)
+          - name: git-revision
+            value: $(tt.params.git-revision)
+          - name: image-name
+            value: $(tt.params.image-name)
+          - name: image-tag
+            value: $(tt.params.image-tag)
+          - name: environment
+            value: $(tt.params.environment)
+        workspaces:
+          - name: shared-workspace
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1Gi
+          - name: git-credentials
+            secret:
+              secretName: bitbucket-credentials
+          - name: docker-credentials
+            secret:
+              secretName: registry-credentials
+
+---
+# TriggerBinding for merge to develop branch (Bitbucket)
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: merge-develop-binding
+  namespace: cicd
+spec:
+  params:
+    - name: git-url
+      value: $(body.repository.links.clone[?(@.name=='http')].href)
+    - name: git-revision
+      value: develop
+    - name: image-name
+      value: "your-registry.azurecr.io/$(body.repository.name)"
+    - name: image-tag
+      value: "develop-$(body.push.changes[0].new.target.hash)"
+    - name: environment
+      value: dev
+
+---
+# TriggerBinding for new tags (Bitbucket)
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: tag-binding
+  namespace: cicd
+spec:
+  params:
+    - name: git-url
+      value: $(body.repository.links.clone[?(@.name=='http')].href)
+    - name: git-revision
+      value: $(body.push.changes[0].new.name)
+    - name: image-name
+      value: "your-registry.azurecr.io/$(body.repository.name)"
+    - name: image-tag
+      value: $(extensions.tag_name)
+    - name: environment
+      value: prod
+
+---
+# TriggerBinding for manual triggers
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: manual-binding
+  namespace: cicd
+spec:
+  params:
+    - name: git-url
+      value: $(body.git-url)
+    - name: git-revision
+      value: $(body.git-revision)
+    - name: image-name
+      value: $(body.image-name)
+    - name: image-tag
+      value: $(body.image-tag)
+    - name: environment
+      value: $(body.environment)
+
+---
+# TriggerBinding for Helm chart updates (Bitbucket)
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: helm-chart-binding
+  namespace: cicd
+spec:
+  params:
+    - name: git-url
+      value: $(body.repository.links.clone[?(@.name=='http')].href)
+    - name: git-revision
+      value: $(body.push.changes[0].new.name)
+    - name: image-name
+      value: "your-registry.azurecr.io/$(body.repository.name)"
+    - name: image-tag
+      value: "chart-update-$(body.push.changes[0].new.target.hash)"
+    - name: environment
+      value: dev
+
+---
+# Trigger for merge to develop (Bitbucket)
+apiVersion: triggers.tekton.dev/v1beta1
+kind: Trigger
+metadata:
+  name: merge-develop-trigger
+  namespace: cicd
+spec:
+  interceptors:
+    - ref:
+        name: bitbucket
+      params:
+        - name: secretRef
+          value:
+            secretName: webhook-secret
+            secretKey: secret
+        - name: eventTypes
+          value:
+            - repo:push
+    - ref:
+        name: cel
+      params:
+        - name: filter
+          value: |
+            body.push.changes.exists(c, c.new.name == 'develop' && c.new.type == 'branch')
+  bindings:
+    - ref: merge-develop-binding
+  template:
+    ref: cd-trigger-template
+
+---
+# Trigger for new tags (Bitbucket)
+apiVersion: triggers.tekton.dev/v1beta1
+kind: Trigger
+metadata:
+  name: tag-trigger
+  namespace: cicd
+spec:
+  interceptors:
+    - ref:
+        name: bitbucket
+      params:
+        - name: secretRef
+          value:
+            secretName: webhook-secret
+            secretKey: secret
+        - name: eventTypes
+          value:
+            - repo:push
+    - ref:
+        name: cel
+      params:
+        - name: filter
+          value: |
+            body.push.changes.exists(c, c.new.type == 'tag')
+        - name: overlays
+          value:
+            - key: tag_name
+              expression: body.push.changes.filter(c, c.new.type == 'tag')[0].new.name
+  bindings:
+    - ref: tag-binding
+  template:
+    ref: cd-trigger-template
+
+---
+# Trigger for manual execution
+apiVersion: triggers.tekton.dev/v1beta1
+kind: Trigger
+metadata:
+  name: manual-trigger
+  namespace: cicd
+spec:
+  interceptors:
+    - ref:
+        name: cel
+      params:
+        - name: filter
+          value: header.canonical('X-Manual-Trigger')[0] == 'true'
+  bindings:
+    - ref: manual-binding
+  template:
+    ref: cd-trigger-template
+
+---
+# Trigger for Helm chart updates (Bitbucket)
+apiVersion: triggers.tekton.dev/v1beta1
+kind: Trigger
+metadata:
+  name: helm-chart-trigger
+  namespace: cicd
+spec:
+  interceptors:
+    - ref:
+        name: bitbucket
+      params:
+        - name: secretRef
+          value:
+            secretName: webhook-secret
+            secretKey: secret
+        - name: eventTypes
+          value:
+            - repo:push
+    - ref:
+        name: cel
+      params:
+        - name: filter
+          value: |
+            body.push.changes.exists(c, 
+              c.commits.exists(commit, 
+                commit.added.exists(f, f.startsWith('helm/')) || 
+                commit.modified.exists(f, f.startsWith('helm/'))
+              )
+            )
+  bindings:
+    - ref: helm-chart-binding
+  template:
+    ref: cd-trigger-template
+
+---
+# EventListener - webhook endpoint
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: cd-listener
+  namespace: cicd
+spec:
+  serviceAccountName: tekton-robot
+  triggers:
+    - name: merge-develop
+      triggerRef: merge-develop-trigger
+    - name: new-tag
+      triggerRef: tag-trigger
+    - name: manual
+      triggerRef: manual-trigger
+    - name: helm-chart-update
+      triggerRef: helm-chart-trigger
+
+---
+# Webhook secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: webhook-secret
+  namespace: cicd
+type: Opaque
+stringData:
+  secret: "change-me-to-a-random-string"
+
+---
+# RBAC for EventListener
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tekton-triggers-role
+  namespace: cicd
+rules:
+  - apiGroups: ["triggers.tekton.dev"]
+    resources: ["eventlisteners", "triggerbindings", "triggertemplates", "triggers"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["tekton.dev"]
+    resources: ["pipelineruns", "pipelineresources", "taskruns"]
+    verbs: ["create"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tekton-triggers-rolebinding
+  namespace: cicd
+subjects:
+  - kind: ServiceAccount
+    name: tekton-robot
+    namespace: cicd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tekton-triggers-role
