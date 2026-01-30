@@ -34,28 +34,10 @@ pipeline {
             }
         }
 
-        stage('Load Image into kind') {
+        stage('Deploy Helm Chart To kind') {
             steps {
                 sh '''
-                kind load docker-image ${IMAGE_NAME}:${IMAGE_TAG} --name kind-3nodes
-                '''
-            }
-        }
-
-        stage('Check kind') {
-            steps {
-                sh '''
-                export KUBECONFIG=/var/lib/jenkins/kubeconfig-kind-3nodes
-                kubectl get nodes 
-                '''
-            }
-        }
-
-        stage('Deploy to kind') {
-            steps {
-                sh '''
-                kubectl apply -f k8s/deployment.yaml --validate=false
-                kubectl apply -f k8s/service.yaml --validate=false
+                helm upgrade -i python-app ./python-app-helm           
                 '''
             }
         }
