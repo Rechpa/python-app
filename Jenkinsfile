@@ -37,10 +37,16 @@ pipeline {
         stage('Deploy Helm Chart To kind') {
             steps {
                 sh '''
-                helm upgrade -i python-app ./python-app-helm           
+                export KUBECONFIG=/var/lib/jenkins/kubeconfig-kind-3nodes
+
+                kubectl config current-context
+                kubectl get nodes
+
+                helm upgrade -i python-app ./python-app-helm
                 '''
             }
         }
+
     }
 
     post {
