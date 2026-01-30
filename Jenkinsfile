@@ -38,14 +38,12 @@ pipeline {
             steps {
                 sh '''
                 export KUBECONFIG=/var/lib/jenkins/kubeconfig-kind-3nodes
-
-                kubectl config current-context
                 kubectl get nodes
-
                 helm upgrade -i python-app ./python-app-helm
                 '''
             }
         }
+
 
     }
 
